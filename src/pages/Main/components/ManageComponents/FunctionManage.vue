@@ -1,22 +1,22 @@
 <template>
-  <div class="user-table" v-loading.fullscreen.lock="loading">
+  <div class="role-manage"  v-loading.fullscreen.lock="loading">
     <el-table
       :data="userItem"
       width="100%"
       align="center"
       style="width: 100%">
       <el-table-column
-        label="用户名"
+        label="功能名称"
         width="200">
         <template slot-scope="scope">
           <span style="margin-left: 10px">{{ scope.row.name }}</span>
         </template>
       </el-table-column>
       <el-table-column
-        label="用户角色"
+        label="哪些人可以看"
         width="300">
         <template slot-scope="scope">
-          <span>{{ scope.row.userRole }}</span>
+          <span>{{ scope.row.rolename }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -25,17 +25,13 @@
         <template slot-scope="scope">
           <el-button
             size="mini"
-            @click="changeUserRole(scope.$index, scope.row)">更改用户角色</el-button>
-          <el-button
-            size="mini"
-            type="danger"
-            @click="handleDelete(scope.$index, scope.row)">删除</el-button>
+            @click="changePermission(scope.$index, scope.row)">更改权限</el-button>
         </template>
       </el-table-column>
     </el-table>
     <el-dialog
       :modal="false"
-      title="修改用户部门角色"
+      title="设置功能的权限"
       :visible.sync="showPowerChooseDialog"
       :before-close="PowerDialogClose">
       <div class="block" style="text-align: center">
@@ -61,7 +57,7 @@
             :key="tag.id"
             @close="handleCloseTag(tag)"
             closable>
-            {{tag.name}}
+            {{tag.rolename}}
           </el-tag>
         </div>
       </div>
@@ -69,62 +65,45 @@
         <el-button style="margin-top: .3rem" type="primary" @click="confirmAddPower">确 定</el-button>
       </div>
     </el-dialog>
-    </div>
+  </div>
 </template>
 <script>
 export default {
-  name: 'UserTable',
+  name: 'FunctionManage',
   data () {
     return {
-      userItem: [],
-      loading: false,
       showPowerChooseDialog: false,
+      userItem: [],
       powerList: [],
       nowUserIndex: -1,
       roles: [],
       departments: [],
       rolePower: '',
-      departmentPower: []
+      departmentPower: [],
+      loading: false
     }
   },
   methods: {
-    changeUserRole (index, row) {
-      // alert(row.role)
+    changePermission (index, row) {
+      this.powerList = []
+      this.nowUserIndex = row.id
       this.showPowerChooseDialog = true
-      if (this.powerList.length === 0) {
-        this.powerList = JSON.parse(row.role)
+      // this.powerList = JSON.parse(row.role)
+      for (var r of row.role) {
+        // alert(typeof r)
+        if (typeof r === 'string') {
+          this.powerList.push(JSON.parse(r))
+        } else {
+          this.powerList.push(r)
+        }
       }
-      this.nowUserIndex = index
-    },
-    handleDelete (index, row) {
-      var _this = this
-      if (row.id.toString() !== this.$store.state.user.userId.toString()) {
-        this.loading = true
-        this.postRequest('http://localhost:8082/deleteUser', {
-          token: _this.$store.state.user.token,
-          userId: row.id
-        }).then(response => {
-          this.loading = false
-          if (response.data.code === 'Success') {
-            this.$message.success('删除成功')
-            this.userItem.splice(index, 1)
-          } else {
-            this.$message.error(response.data.msg)
-          }
-        }).catch((error) => {
-          console.log(error)
-          _this.loading = false
-          this.$message.error('服务器错误')
-        })
-      } else {
-        this.$message.warning('不能删除自己')
-      }
+      // alert(row.role)
+      // this.powerList = row.role
     },
     PowerDialogClose (done) {
       // 关闭权限选择窗口
       this.rolePower = ''
       this.departmentPower = []
-      this.powerList = []
       done()
     },
     addPower () {
@@ -135,19 +114,20 @@ export default {
       }
       this.loading = true
       var _this = this
-      this.postRequest('http://localhost:8082/addOwendRole', {
+      this.postRequest('http://localhost:8082/FunctionPermissionManage/addFunctionPermission', {
         token: _this.$store.state.user.token,
-        userId: _this.userItem[_this.nowUserIndex].id,
+        functionId: _this.userItem[_this.nowUserIndex-1].id,
         roleId: _this.rolePower,
         departmentId: _this.departmentPower.length !== 0 ? _this.departmentPower[_this.departmentPower.length - 1] : ''
       }).then(response => {
         _this.loading = false
         if (response.data.code === 'Success') {
           var p = {}
-          p.id = response.data.ownedRoleId
           p.name = ''
+
           if (this.departmentPower.length !== 0) {
             p.departmentId = this.departmentPower[this.departmentPower.length - 1]
+
             // 根据部门id获取 部门名称
             // alert(p.departmentId)
             function getLabel (list) {
@@ -170,11 +150,15 @@ export default {
             p.departmentId = ''
           }
           p.name += this.roles[_this.rolePower - 1].name
-          this.userItem[this.nowUserIndex].userRole = _this.userItem[this.nowUserIndex].userRole + ' ' + p.name
-          this.powerList.push(p)
-          this.userItem[this.nowUserIndex].role = this.powerList
-          this.rolePower = ''
-          this.departmentPower = []
+          var t = {}
+          t.rolename = p.name
+          t.id = response.data.functionPermissionId
+          _this.userItem[_this.nowUserIndex-1].rolename = _this.userItem[_this.nowUserIndex-1].rolename + ' ' + p.name
+          _this.powerList.push(t)
+          _this.userItem[_this.nowUserIndex-1].role = _this.powerList
+
+          _this.rolePower = ''
+          _this.departmentPower = []
         } else {
           this.$message.error(response.data.msg)
           this.rolePower = ''
@@ -189,20 +173,20 @@ export default {
     handleCloseTag (tag) {
       var _this = this
       this.loading = true
-      this.postRequest('http://localhost:8082/deleteOwendRole', {
+      this.postRequest('http://localhost:8082/FunctionPermissionManage/deleteFunctionPermission', {
         token: _this.$store.state.user.token,
-        owendRoleId: tag.id
+        functionPermissionId: tag.id
       }).then(response => {
         _this.loading = false
         if (response.data.code === 'Success') {
-          this.powerList.splice(this.powerList.indexOf(tag), 1)
+          _this.powerList.splice(this.powerList.indexOf(tag), 1)
           this.$message.success('删除成功')
           var name = ''
-          for (var p of this.powerList) {
-            name += p.name
+          for (var p of _this.powerList) {
+            name += p.rolename
           }
-          _this.userItem[_this.nowUserIndex].userRole = name
-          _this.userItem[_this.nowUserIndex].role = _this.powerList
+          _this.userItem[_this.nowUserIndex-1].rolename = name
+          _this.userItem[_this.nowUserIndex-1].role = _this.powerList
         } else {
           this.$message.error(response.data.msg)
         }
@@ -219,10 +203,9 @@ export default {
     }
   },
   mounted () {
-    this.currentUserId = this.$store.state.user.userId
     var _this = this
     this.loading = true
-    this.postRequest('http://localhost:8082/getUsers', {
+    this.postRequest('http://localhost:8082/FunctionPermissionManage/getFunctionPermissionInfo', {
       token: _this.$store.state.user.token
     }).then(response => {
       if (response.data !== '') {
@@ -252,7 +235,7 @@ export default {
         _this.roles = response.data
       }).catch((error) => {
         console.log(error)
-        _this.loading = false
+        // _this.loading = false
         this.$message.error('服务器错误')
       })
     }
@@ -260,7 +243,4 @@ export default {
 }
 </script>
 <style lang="stylus" scoped>
-  .user-table
-    height 60%
-    overflow auto
 </style>

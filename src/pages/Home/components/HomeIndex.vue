@@ -186,7 +186,15 @@ export default {
           user.token = response.data.token
           user.departmentRoleId = response.data.departmentRoleId.substring(1, response.data.departmentRoleId.length - 1).split(',')
           _this.$store.commit('login', user)
-          _this.$router.push('/main')
+          var that = _this
+          this.postRequest('http://localhost:8082/system/getUsableFunction', {
+            token: that.$store.state.user.token
+          }).then(response => {
+            if (response.data.code === 'Success') {
+              that.$store.commit('initMenu', response.data)
+              that.$router.push('/main')
+            }
+          })
         }
       }).catch((error) => {
         console.log(error)

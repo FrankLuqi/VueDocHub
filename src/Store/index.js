@@ -41,6 +41,10 @@ export default new Vuex.Store({
       state.user = {}
       state.managements = {}
       state.routes = []
+    },
+    changeUserface (state, url) {
+      state.user.userFace = url
+      window.localStorage.setItem('user', JSON.stringify(state.user))
     }
   }
 })

@@ -1,18 +1,20 @@
-import {postRequest} from './api'
+// import {postRequest} from './api'
 export const initMenu = (store) => {
-  if (store.state.managements.userManage !== null) {
+  if (store.state.managements.userManage !== undefined) {
     if (store.state.managements.userManage !== '') {
       return
     }
   }
-  postRequest('http://localhost:8082/system/getUsableFunction', {
-    token: store.state.user.token
-  }).then(response => {
-    if (response.data.code === 'Success') {
-      // var fmtRoutes = formatRoutes(response.data)
-      store.commit('initMenu', response.data)
-    }
-  })
+  // alert('fsdaf')
+  // postRequest('http://localhost:8082/system/getUsableFunction', {
+  //   token: store.state.user.token
+  // }).then(response => {
+  //   if (response.data.code === 'Success') {
+  //     alert('hahaha')
+  //     // var fmtRoutes = formatRoutes(response.data)
+  //     store.commit('initMenu', response.data)
+  //   }
+  // })
 }
 
 // export const formatManagements = (managements) => {

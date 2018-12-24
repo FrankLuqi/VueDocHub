@@ -1,5 +1,5 @@
 <template>
-  <div class="user-index">
+  <div class="user-index" v-loading.fullscreen.lock="loading">
     <div class="header">
       <div>
         <img class="user-face" v-bind:src="UserPhoto" alt="">
@@ -10,15 +10,24 @@
       </div>
       <div class="tool-bar">
         <el-button size="small" type="primary">修改密码</el-button>
-        <el-button size="small" type="primary">上传头像</el-button>
-        <el-button size="small" type="danger">退出登录</el-button>
+        <el-upload
+          ref="upload-userface"
+          class="upload-demo"
+          v-bind:show-file-list= "show"
+          action="http://localhost:8082/uploadUserface"
+          :on-success="onSuccess"
+          :on-progress="onProgress"
+          v-bind:data="extraData">
+          <el-button size="small" type="primary">上传头像</el-button>
+        </el-upload>
+        <el-button size="small" type="danger" @click="logout">退出登录</el-button>
       </div>
     </div>
     <div class="user-doc">
       <div class="user-doc-tip">
         最近上传的文件
       </div>
-      <div>
+      <div class="doc-items">
         <el-table
           :data="docItem"
           width="100%"
@@ -32,22 +41,33 @@
             </template>
           </el-table-column>
           <el-table-column
-            label="文件类型"
+            align="center"
+            label="文件类别"
             width="100">
             <template slot-scope="scope">
-              <span>{{ scope.row.docType }}</span>
+              <span>{{ scope.row.category }}</span>
             </template>
           </el-table-column>
           <el-table-column
+            align="center"
+            label="文件类型"
+            width="100">
+            <template slot-scope="scope">
+              <span>{{ scope.row.type }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            align="center"
             label="上传时间"
             sortable
             prop="scope.row.uploadTime"
             width="180">
             <template slot-scope="scope">
-              <span>{{ scope.row.uploadTime }}</span>
+              <span>{{ scope.row.uploadDate }}</span>
             </template>
           </el-table-column>
           <el-table-column
+            align="center"
             label="下载次数"
             prop="scope.row.downloads"
             width="180">
@@ -56,15 +76,31 @@
             </template>
           </el-table-column>
           <el-table-column
+            align="center"
+            label="是否公开"
+            width="100">
+            <template slot-scope="scope">
+              <span v-if="scope.row.open===1">是</span>
+              <span v-if="scope.row.open===0">否</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            align="center"
+            label="哪些人能看"
+            width="180">
+            <template slot-scope="scope">
+              <span v-if="scope.row.open===1">所有人</span>
+              <span v-if="scope.row.open===0">{{scope.row.permission}}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            align="center"
             label="操作"
             width="300">
             <template slot-scope="scope">
               <el-button
                 size="mini"
-                @click="handleCheck(scope.$index, scope.row)">查看</el-button>
-              <el-button
-                size="mini"
-                @click="handleDownload(scope.$index, scope.row)">下载</el-button>
+                @click="handleChangePermission(scope.$index, scope.row)">更改文件权限</el-button>
               <el-button
                 size="mini"
                 type="danger"
@@ -74,13 +110,40 @@
         </el-table>
       </div>
     </div>
-    <pdf-reader :pdfurl="url" v-if="showPdf" v-on:closepdf="ClosePdf"></pdf-reader>
-    <el-dialog :title="vedioTitle" :visible.sync="showVideo">
-      <video-player  v-if="showVideo" class="video-player vjs-custom-skin"
-                     ref="videoPlayer"
-                     :playsinline="true"
-                     :options="playerOptions"
-      ></video-player>
+    <el-dialog
+      title="请设置该文件权限"
+      :visible.sync="showPowerChooseDialog"
+      :before-close="PowerDialogClose">
+      <div class="block" style="text-align: center">
+        <div>
+          <el-cascader
+            expand-trigger="hover"
+            :options="departments"
+            v-model="departmentPower">
+          </el-cascader>
+          <el-select v-model="rolePower" placeholder="请选择角色">
+            <el-option
+              v-for="item in roles"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id">
+            </el-option>
+          </el-select>
+          <el-button type="primary" @click="addPower">添 加</el-button>
+        </div>
+        <div style="margin-top: .1rem">
+          <el-tag
+            v-for="tag in powerList"
+            :key="tag.id"
+            @close="handleCloseTag(tag)"
+            closable>
+            {{tag.powerName}}
+          </el-tag>
+        </div>
+      </div>
+      <div style="text-align: center">
+        <el-button style="margin-top: .3rem" type="primary" @click="confirmAddPower">确 定</el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -89,100 +152,217 @@ import userFace from '@/assets/img/user-face.jpg'
 import PdfReader from '../PdfReader/PdfReader'
 export default {
   name: 'UserIndex',
-  components: {
-    PdfReader
-  },
   data () {
     return {
       UserPhoto: userFace,
       userName: '鹿琦',
       userRole: '生产部 经理',
-      showPdf: false,
-      showVideo: false,
-      vedioTitle: '',
-      url: '',
-      vedioUrl: 'https://o6yh618n9.qnssl.com/oRUf3CyF_9800111451.mp4',
-      playerOptions: {
-        playbackRates: [0.7, 1.0, 1.5, 2.0], // 播放速度
-        autoplay: false, // 如果true,浏览器准备好时开始回放。
-        muted: false, // 默认情况下将会消除任何音频。
-        loop: false, // 导致视频一结束就重新开始。
-        preload: 'auto', // 建议浏览器在<video>加载元素后是否应该开始下载视频数据。auto浏览器选择最佳行为,立即开始加载视频（如果浏览器支持）
-        language: 'zh-CN',
-        aspectRatio: '16:9', // 将播放器置于流畅模式，并在计算播放器的动态大小时使用该值。值应该代表一个比例 - 用冒号分隔的两个数字（例如"16:9"或"4:3"）
-        fluid: true, // 当true时，Video.js player将拥有流体大小。换句话说，它将按比例缩放以适应其容器。
-        sources: [{
-          type: '',
-          src: this.vedioUrl // url地址
-        }],
-        poster: '../../static/images/test.jpg', // 你的封面地址
-        // width: document.documentElement.clientWidth,
-        notSupportedMessage: '此视频暂无法播放，请稍后再试', // 允许覆盖Video.js无法播放媒体源时显示的默认信息。
-        controlBar: {
-          timeDivider: true,
-          durationDisplay: true,
-          remainingTimeDisplay: false,
-          fullscreenToggle: true // 全屏按钮
-        }
-      },
-      docItem: [{
-        id: '1',
-        docName: '某高校科研管理系统摘要.pdf',
-        uploadUser: '鹿琦',
-        docType: '文档',
-        uploadTime: '2018-11-22',
-        downloads: 37,
-        docId: 'test1'
-      },
-      {
-        id: '2',
-        docName: '数据库原理、编程与性能[中文版].pdf',
-        uploadUser: '鹿琦',
-        docType: '文档',
-        uploadTime: '2018-11-23',
-        downloads: 10,
-        docId: 'test2'
-      },
-      {
-        id: '3',
-        docName: '比赛集锦 曼城2:0富勒姆',
-        uploadUser: '鹿琦',
-        docType: '视频',
-        uploadTime: '2018-11-24',
-        downloads: 1,
-        vedioUrl: 'https://o6yh618n9.qnssl.com/oRUf3CyF_9800111451.mp4'
-      },
-      {
-        id: '4',
-        docName: '任天堂明星大乱斗',
-        uploadUser: '鹿琦',
-        docType: '视频',
-        uploadTime: '2018-11-24',
-        downloads: 22,
-        vedioUrl: 'http://localhost:8080/static/test3.mp4'
-      }]
+      docItem: [],
+      loading: false,
+      showPowerChooseDialog: false,
+      roles: [],
+      departments: [],
+      rolePower: '',
+      departmentPower: [],
+      powerList: [],
+      powers: [],
+      nowIndex: -1,
+      extraData: {},
+      show: false
     }
   },
   methods: {
-    handleCheck (index, row) {
-      // alert(row.docName)
-      if (row.docType === '视频') {
-        this.vedioUrl = row.vedioUrl
-        this.playerOptions.sources[0].src = this.vedioUrl
-        this.vedioTitle = row.docName
-        this.showVideo = true
-      } else if (row.docType === '文档') {
-        this.url = 'http://localhost:8080/static/' + row.docId + '.pdf'
-        this.showPdf = true
+    handleChangePermission (index, row) {
+      this.showPowerChooseDialog = true
+      this.nowIndex = index
+    },
+    addPower () {
+      // 添加文件权限
+      // var _this = this
+      if (this.rolePower === '' && this.departmentPower.length === 0) {
+        this.$message.warning('请选择权限')
+      }
+      var p = {}
+      p.roleId = this.rolePower
+      p.powerName = ''
+      if (this.departmentPower.length !== 0) {
+        p.departmentId = this.departmentPower[this.departmentPower.length - 1]
+        // 根据部门id获取 部门名称
+        // alert(p.departmentId)
+        function getLabel (list) {
+          for (var item of list) {
+            // alert(item.value)
+            if (item.value === p.departmentId) {
+              return item.label
+            }
+            if (item.children !== undefined) {
+              var result = getLabel(item.children)
+              if (result !== undefined) {
+                return result
+              }
+            }
+          }
+        }
+        p.powerName += getLabel(this.departments)
+        p.powerName += ' '
+      } else {
+        p.departmentId = ''
+      }
+      p.powerName += this.roles[p.roleId - 1].name
+      p.id = this.powerList.length
+      this.powerList[this.powerList.length] = p
+
+      this.rolePower = ''
+      this.departmentPower = []
+      // alert(this.departmentPower)
+      // alert(this.rolePower)
+    },
+    confirmAddPower () {
+      for (var power of this.powerList) {
+        this.powers.push(JSON.stringify(power))
+      }
+      this.loading = true
+      // 点击文件权限选择页的确认
+      this.postRequest('http://localhost:8082/changeDocPermission', {
+        token: this.$store.state.user.token,
+        docId: this.docItem[this.nowIndex].id,
+        power: this.powers
+      }).then(response => {
+        this.loading = false
+        if (response.data !== '') {
+          if (response.data.code === 'Success') {
+            this.$message.success(response.data.msg)
+            this.docItem[this.nowIndex].permission = response.data.permission
+            this.docItem[this.nowIndex].open = response.data.open
+            this.powerList = []
+          } else {
+            this.$message.error(response.data.msg)
+            this.powers = []
+          }
+        }
+      }).catch((error) => {
+        console.log(error)
+        this.powers = []
+        this.loading = false
+        this.$message.error('服务器错误')
+      })
+      this.showPowerChooseDialog = false
+      this.rolePower = ''
+      this.departmentPower = []
+    },
+    handleCloseTag (tag) {
+      // 删除一条powerlist
+      this.powerList.splice(this.powerList.indexOf(tag), 1)
+    },
+    PowerDialogClose (done) {
+      // 关闭权限选择窗口
+      this.powerList = []
+      this.rolePower = ''
+      this.departmentPower = []
+      done()
+    },
+    handleDelete (index, row) {
+      this.loading = true
+      this.postRequest('http://localhost:8082/deleteDoc', {
+        token: this.$store.state.user.token,
+        docId: row.id
+      }).then(response => {
+        this.loading = false
+        if (response.data !== '') {
+          if (response.data.code === 'Success') {
+            this.$message.success(response.data.msg)
+            this.docItem.splice(index, 1)
+          } else {
+            this.$message.error(response.data.msg)
+          }
+        }
+      }).catch((error) => {
+        console.log(error)
+        this.loading = false
+        this.$message.error('服务器错误')
+      })
+    },
+    logout () {
+      var _this = this
+      this.loading = true
+      this.postRequest('http://localhost:8082/logout1', {
+        token: _this.$store.state.user.token
+        // userId: _this.$store.state.user.userId
+      }).then(response => {
+        _this.loading = false
+        if (response.data.code === 'Error') {
+          this.$message.error('请重试')
+        } else if (response.data.code === 'Success') {
+          this.$message.success(response.data.msg)
+          _this.$store.commit('logout')
+          setTimeout(function () {
+            _this.$router.push('/')
+          }, 1000)
+        }
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+      })
+    },
+    onSuccess (response, file, fileList) {
+      this.loading = false
+      if (response.code === 'Success') {
+        this.$store.commit('changeUserface',response.userFace)
+        this.UserPhoto = this.$store.state.user.userFace
+        this.$message.success('修改成功')
+      } else {
+        this.$message.error('修改失败')
       }
     },
-    ClosePdf () {
-      this.showPdf = false
+    onProgress () {
+      this.loading = true
     }
   },
   mounted () {
-    this.docItemShow = this.docItem
-
+    var _this = this
+    this.loading = true
+    if (this.docItem.length === 0) {
+      this.postRequest('http://localhost:8082/getDocList', {
+        token: _this.$store.state.user.token,
+        himself: true
+      }).then(response => {
+        _this.loading = false
+        if (response.data !== '') {
+          _this.docItem = response.data
+        }
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+        this.$message.error('服务器错误')
+      })
+    }
+    if (this.departments.length === 0) {
+      this.loading = true
+      this.postRequest('http://localhost:8082/getDepartmentsInfo', {
+        token: _this.$store.state.user.token
+      }).then(response => {
+        _this.loading = false
+        _this.departments = response.data
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+        this.$message.error('服务器错误')
+      })
+    }
+    if (this.roles.length === 0) {
+      this.loading = true
+      this.postRequest('http://localhost:8082/getRoles', {
+        token: _this.$store.state.user.token
+      }).then(response => {
+        _this.loading = false
+        _this.roles = response.data
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+        this.$message.error('服务器错误')
+      })
+    }
+    this.extraData.token = this.$store.state.user.token
     this.userName = this.$store.state.user.userName
     this.userRole = this.$store.state.user.roles
     this.UserPhoto = this.$store.state.user.userFace
@@ -190,6 +370,8 @@ export default {
 }
 </script>
 <style lang="stylus" scoped>
+  >>> .upload-demo
+    width 80px
   .user-index
     width 100%
     .header
@@ -203,11 +385,19 @@ export default {
       box-shadow 1px 1px 5px #888888
       .user-face
         width 3rem
+        height 3rem
         border-radius 50%
       .user-info
         margin-top .3rem
         div
           margin-bottom .3rem
+      .tool-bar
+        display flex
+        margin auto
+        button
+          margin 0 .1rem
+        div
+          margin-right .15rem
     .user-doc
       margin-top .5rem
       width 100%
@@ -220,4 +410,7 @@ export default {
         border-bottom 1px solid #E8E8E8
         margin 0 auto
         height .5rem
+      .doc-items
+        height 50%
+        overflow auto
 </style>

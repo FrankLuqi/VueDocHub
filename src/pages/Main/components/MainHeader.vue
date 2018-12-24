@@ -29,7 +29,7 @@
                 <el-dropdown-item disabled>
                   <div class="user-info" style="background-color:#eff4f8; width: 4rem; height: 4rem; display: flex; flex-direction: column; justify-content: center; text-align: center; margin-bottom: .2rem">
                     <span class="user-photo">
-                      <img v-bind:src="UserPhoto" style="border-radius: 50%; border: 2px solid #999">
+                      <img v-bind:src="UserPhoto" style="border-radius: 50%; border: 2px solid #999; width: 1rem; height: 1rem">
                     </span>
                     <span class="username" style="color: black">{{UserName}}</span>
                     <span class="user-role" style="color: black"><span v-for="role in UserDepartmentRole" v-bind:key="role">{{role}}</span></span>

@@ -1,5 +1,5 @@
 <template>
-  <div class="role-manage">
+  <div class="role-manage"  v-loading.fullscreen.lock="loading">
     <p class="title">部门信息管理</p>
     <el-tree
       :data="roleData"
@@ -14,12 +14,6 @@
                 size="mini"
                 @click="() => append(data)">
                 添加
-              </el-button>
-              <el-button
-                type="text"
-                size="mini"
-                @click="() => changeName(node, data)">
-                更改名称
               </el-button>
               <el-button
                 type="text"
@@ -72,27 +66,87 @@ export default {
           id: 8,
           label: '二级 3-2'
         }]
-      }]
+      }],
+      DepartmentName: '',
+      loading: false
     }
   },
   methods: {
     append (data) {
-      const newChild = { id: this.id++, label: 'testtest', children: [] }
-      if (!data.children) {
-        this.$set(data, 'children', [])
-      }
-      data.children.push(newChild)
+      this.inputDepartmentName(data)
     },
     remove (node, data) {
-      const parent = node.parent
-      const children = parent.data.children || parent.data
-      const index = children.findIndex(d => d.id === data.id)
-      children.splice(index, 1)
+      var _this = this
+      _this.loading = true
+      this.postRequest('http://localhost:8082/DepartmentManage/deleteDepartment', {
+        token: _this.$store.state.user.token,
+        departmentId: data.value
+      }).then(response => {
+        _this.loading = false
+        if (response.data.code === 'Success') {
+          _this.$message.success(response.data.msg)
+          const parent = node.parent
+          const children = parent.data.children || parent.data
+          const index = children.findIndex(d => d.id === data.id)
+          children.splice(index, 1)
+        } else {
+          _this.$message.error(response.data.msg)
+        }
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+        this.$message.error('服务器错误')
+      })
     },
-    changeName (node, data) {
-      alert(node.parent.label)
-      alert(data.label)
+    inputDepartmentName (data) {
+      var _this = this
+      this.$prompt('请输入部门名称', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      }).then(({ value }) => {
+        if (value !== '') {
+          _this.loading = true
+          this.postRequest('http://localhost:8082/DepartmentManage/addDepartment', {
+            token: _this.$store.state.user.token,
+            departmentName: value,
+            parentCode: data.code
+          }).then(response => {
+            _this.loading = false
+            if (response.data.code === 'Success') {
+              _this.$message.success('添加成功')
+              const newChild = { value: response.data.id, label: value, children: [], code: response.data.departmentCode }
+              if (!data.children) {
+                _this.$set(data, 'children', [])
+              }
+              data.children.push(newChild)
+            } else {
+              _this.$message.success(response.data.msg)
+            }
+          }).catch((error) => {
+            console.log(error)
+            _this.loading = false
+            this.$message.error('服务器错误')
+          })
+        }
+      }).catch(() => {
+      })
     }
+  },
+  mounted () {
+    var _this = this
+    this.loading = true
+    this.postRequest('http://localhost:8082/getDepartmentsInfo', {
+      token: _this.$store.state.user.token
+    }).then(response => {
+      _this.loading = false
+      if (response.data !== '') {
+        _this.roleData = response.data
+      }
+    }).catch((error) => {
+      console.log(error)
+      _this.loading = false
+      this.$message.error('服务器错误')
+    })
   }
 }
 </script>

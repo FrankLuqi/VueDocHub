@@ -1,5 +1,5 @@
 <template>
-  <div style="position: relative">
+  <div style="position: relative" v-loading.fullscreen.lock="loading">
     <el-row class="tool-bar" ref="theToolBar">
       <el-col :xs="0" :sm="0" :md="6" :lg="8" :xl="6"></el-col>
       <el-col :xs="0" :sm="0" :md="6" :lg="8" :xl="12" class="item"></el-col>
@@ -13,18 +13,29 @@
     </el-row>
     <div class="doc-items">
       <el-table
+        id="theTable"
         :data="docItemShow"
         width="100%"
         align="center"
         style="width: 100%">
         <el-table-column
+          align="center"
           label="文件名称"
-          width="400">
+          width="300">
           <template slot-scope="scope">
             <span style="margin-left: 10px">{{ scope.row.docName }}</span>
           </template>
         </el-table-column>
         <el-table-column
+          align="center"
+          label="文件类别"
+          width="120">
+          <template slot-scope="scope">
+            <span style="margin-left: 10px">{{ scope.row.category }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          align="center"
           label="上传者"
           width="100">
           <template slot-scope="scope">
@@ -32,22 +43,25 @@
           </template>
         </el-table-column>
         <el-table-column
+          align="center"
           label="文件类型"
           width="100">
           <template slot-scope="scope">
-            <span>{{ scope.row.docType }}</span>
+            <span>{{ scope.row.type }}</span>
           </template>
         </el-table-column>
         <el-table-column
+          align="center"
           label="上传时间"
           sortable
           prop="scope.row.uploadTime"
           width="180">
           <template slot-scope="scope">
-            <span>{{ scope.row.uploadTime }}</span>
+            <span>{{ scope.row.uploadDate }}</span>
           </template>
         </el-table-column>
         <el-table-column
+          align="center"
           label="下载次数"
           prop="scope.row.downloads"
           width="180">
@@ -56,10 +70,11 @@
           </template>
         </el-table-column>
         <el-table-column
+          align="center"
           label="操作"
           width="300">
           <template slot-scope="scope">
-            <el-button
+            <el-button v-if="scope.row.type!='其他文件'"
               size="mini"
               @click="handleCheck(scope.$index, scope.row)">查看</el-button>
             <el-button
@@ -164,8 +179,8 @@
         </div>
       </el-dialog>
     </el-dialog>
-    <viewer :images="signImages" style="visibility: hidden">
-      <img id="imgShower" v-for="src in signImages" :src="src" :key="src" width="50">
+    <viewer style="visibility: hidden">
+      <img id="imgShower" v-bind:src="signImages" width="50">
     </viewer>
   </div>
 </template>
@@ -177,6 +192,7 @@ export default {
   name: 'MainDoc',
   data () {
     return {
+      loading: false,
       search: '',
       url: '',
       vedioUrl: 'https://o6yh618n9.qnssl.com/oRUf3CyF_9800111451.mp4',
@@ -194,46 +210,8 @@ export default {
       departmentPower: [],
       departments: [],
       roles: [],
-      signImages: ['https://ss.csdn.net/p?https://mmbiz.qpic.cn/mmbiz_jpg/Pn4Sm0RsAuiaj2uiaAibria6ROYibs8VWTRa5fNYkIqCHCK2OCtSCVxhWyBjaB1EebsWqHQs9Mq4qH5tVMcluLiapSiaQ/640?wx_fmt=jpeg'],
-      docItem: [{
-        id: '1',
-        docName: '某高校科研管理系统摘要.pdf',
-        uploadUser: '鹿琦',
-        docType: '图片',
-        uploadTime: '2018-11-22',
-        downloads: 37,
-        downloadUrl: '',
-        preview_url: 'http://127.0.0.1:8082/preview?name=d178d6a0dae3494aa3ed67867625dbb4.jpg',
-      },
-      {
-        id: '2',
-        docName: '数据库原理、编程与性能[中文版].pdf',
-        uploadUser: '鹿琦',
-        docType: '文档',
-        uploadTime: '2018-11-23',
-        downloads: 10,
-        docId: 'test2'
-      },
-      {
-        id: '3',
-        docName: '比赛集锦 曼城2:0富勒姆',
-        uploadUser: '鹿琦',
-        docType: '视频',
-        uploadTime: '2018-11-24',
-        downloads: 1,
-        vedioUrl: 'https://o6yh618n9.qnssl.com/oRUf3CyF_9800111451.mp4'
-      },
-      {
-        id: '4',
-        docName: '任天堂明星大乱斗',
-        uploadUser: '鹿琦',
-        docType: '视频',
-        uploadTime: '2018-11-24',
-        downloads: 22,
-        vedioUrl: 'http://127.0.0.1:8082/preview?token=' + this.$store.state.user.token + '&name=84dae7d67d354f76b49d8b3685faaa6b.mp4',
-        preview_url: '84dae7d67d354f76b49d8b3685faaa6b.mp4'
-      }
-      ],
+      signImages: '',
+      docItem: [],
       playerOptions: {
         playbackRates: [0.7, 1.0, 1.5, 2.0], // 播放速度
         autoplay: false, // 如果true,浏览器准备好时开始回放。
@@ -286,7 +264,7 @@ export default {
       if (this.search !== '') {
         this.docItemShow = []
         this.docItem.forEach((value) => {
-          if (value.docName.indexOf(this.search) > -1 || value.uploadUser.indexOf(this.search) > -1) {
+          if (value.docName.indexOf(this.search) > -1 || value.uploadUser.indexOf(this.search) > -1 || value.type.indexOf(this.search) > -1 || value.category.indexOf(this.search) > -1) {
             this.docItemShow.push(value)
           }
         })
@@ -297,17 +275,18 @@ export default {
     handleCheck (index, row) {
       // this.$refs.imgShower.trigger('click')
       // alert(row.docName)
-      if (row.docType === '视频') {
+      if (row.type === '视频') {
         this.vedioUrl = row.vedioUrl
-        this.playerOptions.sources[0].src = this.vedioUrl
+        this.playerOptions.sources[0].src = row.previewUrl
+        // this.playerOptions.sources[0].src = 'http://127.0.0.1:8082/preview?token=' + this.$store.state.user.token + '&name='+row.previewUrl
         this.vedioTitle = row.docName
         this.showVideo = true
-      } else if (row.docType === '文档') {
-        this.url = 'http://localhost:8080/static/' + row.docId + '.pdf'
+      } else if (row.type === 'office文档' || row.type === 'pdf文档') {
+        this.url = row.previewUrl
         this.showPdf = true
-      } else if (row.docType === '图片') {
-        this.signImages[0] = row.preview_url
-        document.getElementById("imgShower").click()
+      } else if (row.type === '图片') {
+        this.signImages = row.previewUrl
+        document.getElementById('imgShower').click()
       }
     },
     ClosePdf () {
@@ -330,9 +309,24 @@ export default {
       this.fileList = fileList
     },
     onSuccess (response, file, fileList) {
+      var _this = this
       this.$refs.upload.clearFiles()
       this.DocCategory = []
       this.powerList = []
+      this.postRequest('http://localhost:8082/getDocList', {
+        token: _this.$store.state.user.token,
+        himself: false
+      }).then(response => {
+        _this.loading = false
+        if (response.data !== '') {
+          _this.docItem = response.data
+          _this.docItemShow = _this.docItem
+        }
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+        this.$message.error('服务器错误')
+      })
     },
     onError (err, file, fileList) {
       console.log(err.toString())
@@ -425,7 +419,9 @@ export default {
       } else {
         p.departmentId = ''
       }
-      p.powerName += this.roles[p.roleId - 1].name
+      if (this.rolePower !== '') {
+        p.powerName += this.roles[p.roleId - 1].name
+      }
       p.id = this.powerList.length
       this.powerList[this.powerList.length] = p
 
@@ -445,50 +441,40 @@ export default {
       this.powerList.splice(this.powerList.indexOf(tag), 1)
     },
     handleDownload (index, row) {
+      this.docItem[index].downloads++
       // 下载文件
-      var _this = this
-      // this.getRequest('http://localhost:8082/downloadDoc?token=' + _this.$store.state.user.token + '&docId=' + _this.docItem[index].id)
-      window.open('http://localhost:8082/downloadDoc?token=' + _this.$store.state.user.token + '&docId=' + _this.docItem[index].id)
-      // axios({ // 用axios发送post请求
-      //   method: 'post',
-      //   url: 'http://localhost:8082/downloadDoc', // 请求地址
-      //   headers: {
-      //     'Content-Type': 'application/x-www-form-urlencoded'
-      //   },
-      //   params: {
-      //     'token': _this.$store.state.user.token,
-      //     'docId': _this.docItem[index].id
-      //   }, // 参数
-      //   responseType: 'blob' // 表明返回服务器返回的数据类型
-      // }).then((res) => { // 处理返回的文件流
-      //   const content = res
-      //   const blob = new Blob([content])
-      //   const fileName = '1.jpg'
-      //   if ('download' in document.createElement('a')) { // 非IE下载
-      //     const elink = document.createElement('a')
-      //     elink.download = fileName
-      //     elink.style.display = 'none'
-      //     elink.href = URL.createObjectURL(blob)
-      //     document.body.appendChild(elink)
-      //     elink.click()
-      //     URL.revokeObjectURL(elink.href) // 释放URL 对象
-      //     document.body.removeChild(elink)
-      //   } else { // IE10+下载
-      //     navigator.msSaveBlob(blob, fileName)
-      //   }
-      // })
+      // window.open('http://localhost:8082/downloadDoc?token=' + _this.$store.state.user.token + '&docId=' + _this.docItem[index].id)
+      window.open(row.downloadUrl)
     }
+
   },
   mounted () {
-    this.docItemShow = this.docItem
     var _this = this
+    this.loading = true
+    if (this.docItem.length === 0) {
+      this.postRequest('http://localhost:8082/getDocList', {
+        token: _this.$store.state.user.token,
+        himself: false
+      }).then(response => {
+        if (response.data !== '') {
+          _this.docItem = response.data
+          _this.docItemShow = _this.docItem
+          _this.loading = false
+        }
+      }).catch((error) => {
+        console.log(error)
+        _this.loading = false
+        this.$message.error('服务器错误')
+      })
+    }
+
     if (this.departments.length === 0) {
       this.loading = true
       this.postRequest('http://localhost:8082/getDepartmentsInfo', {
         token: _this.$store.state.user.token
       }).then(response => {
-        _this.loading = false
         _this.departments = response.data
+        _this.loading = false
       }).catch((error) => {
         console.log(error)
         _this.loading = false
@@ -500,8 +486,8 @@ export default {
       this.postRequest('http://localhost:8082/getRoles', {
         token: _this.$store.state.user.token
       }).then(response => {
-        _this.loading = false
         _this.roles = response.data
+        _this.loading = false
       }).catch((error) => {
         console.log(error)
         _this.loading = false
@@ -555,6 +541,8 @@ export default {
     top: 2.55rem
     position fixed
     width 100%
+    overflow auto
+    height 80%
   >>> .el-dialog__wrapper .el-dialog
     @media screen and (max-width: 800px)
       width 100%
@@ -570,4 +558,6 @@ export default {
       .el-upload
         .el-button
           width 3rem
+  /*#theTable*/
+    /*height 500rem*/
 </style>

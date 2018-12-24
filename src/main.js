@@ -31,7 +31,7 @@ import zh from 'vee-validate/dist/locale/zh_CN'
 // import axios from 'axios'
 // 引入视频播放插件
 import VideoPlayer from 'vue-video-player'
-//引入图片展示插件
+// 引入图片展示插件
 import Viewer from 'v-viewer'
 import 'viewerjs/dist/viewer.css'
 require('video.js/dist/video-js.css')
@@ -39,7 +39,7 @@ require('vue-video-player/src/custom-theme.css')
 Vue.use(VideoPlayer)
 Vue.use(Viewer)
 Viewer.setDefaults({
-  Options: { "inline": true, "button": true, "navbar": true, "title": true, "toolbar": true, "tooltip": true, "movable": true, "zoomable": true, "rotatable": true, "scalable": true, "transition": true, "fullscreen": true, "keyboard": true, "url": "data-source" }
+  Options: { 'inline': true, 'button': true, 'navbar': true, 'title': true, 'toolbar': true, 'tooltip': true, 'movable': true, 'zoomable': true, 'rotatable': true, 'scalable': true, 'transition': true, 'fullscreen': true, 'keyboard': true, 'url': 'data-source' }
 })
 Vue.use(VeeValidate)
 Vue.use(VueI18n)

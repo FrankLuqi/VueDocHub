@@ -40,7 +40,7 @@ export const postRequest = (url, params) => {
     method: 'post',
     url: `${base}${url}`,
     data: params,
-    timeout: 10000,
+    timeout: 15000,
     transformRequest: [function (data) {
       let ret = ''
       for (let it in data) {

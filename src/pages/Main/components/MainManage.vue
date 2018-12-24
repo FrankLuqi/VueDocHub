@@ -11,6 +11,7 @@
         <el-submenu index="2">
           <template slot="title">文件管理</template>
           <el-menu-item index="2-1" v-bind:disabled="DocCategoryManage">文件类别管理</el-menu-item>
+          <el-menu-item index="2-2">文件统计</el-menu-item>
         </el-submenu>
         <el-submenu index="3">
           <template slot="title">功能管理</template>
@@ -22,6 +23,9 @@
       <user-table v-if="area === '1-1'"></user-table>
       <department-manage v-if="area === '1-2'"></department-manage>
       <doc-category-manage v-if="area === '2-1'"></doc-category-manage>
+      <function-manage v-if="area === '3-1'"></function-manage>
+      <role-manage v-if="area === '1-3'"></role-manage>
+      <doc-report v-if="area === '2-2'"></doc-report>
     </div>
   </div>
 </template>
@@ -29,12 +33,15 @@
 import UserTable from './ManageComponents/UserTable'
 import DepartmentManage from './ManageComponents/DepartmentManage'
 import DocCategoryManage from './ManageComponents/DocCategoryManage'
+import FunctionManage from './ManageComponents/FunctionManage'
+import RoleManage from './ManageComponents/RoleManage'
+import DocReport from './ManageComponents/DocReport'
 export default {
   name: 'MainManage',
   data () {
     return {
-      activeIndex: '1-1',
-      area: '1-1',
+      activeIndex: '2-2',
+      area: '2-2',
       userManage: !this.$store.state.managements.userManage,
       departmentManage: !this.$store.state.managements.departmentManage,
       RoleManage: !this.$store.state.managements.RoleManage,
@@ -50,7 +57,13 @@ export default {
   components: {
     DocCategoryManage,
     UserTable,
-    DepartmentManage
+    DepartmentManage,
+    FunctionManage,
+    RoleManage,
+    DocReport
+  },
+  mounted () {
+
   }
 }
 </script>
@@ -59,9 +72,13 @@ export default {
     position fixed
     top 1.55rem
     width 100%
+    height 100%
     .tool-bar
       margin 0 auto
       width 80%
       @media screen and (max-width: 1000px)
         width 100%
+    .manage-area
+      height 79%
+      overflow auto
 </style>
